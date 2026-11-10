@@ -50,7 +50,7 @@
   </div>
 
   <script>
-    const VERCEL_BACKEND_URL = "https://imageupscaler-rouge.vercel.app/"; // Replace with your Vercel URL
+    const VERCEL_BACKEND_URL = "https://imageupscaler-rouge.vercel.app/"; // Keep your actual Vercel URL here
 
     const fileInput = document.getElementById('file-input');
     const uploadLabel = document.getElementById('upload-label');
@@ -80,7 +80,7 @@
       if (!base64Image) return;
 
       upscaleBtn.disabled = true;
-      statusText.textContent = "Processing image with AI... (this takes ~5-15s)";
+      statusText.textContent = "Processing image with AI... (First run can take 20s if the model is waking up)";
       previewContainer.style.display = 'none';
 
       try {
@@ -90,10 +90,17 @@
           body: JSON.stringify({ imageBase64: base64Image })
         });
 
-        const data = await response.json();
+        const textResponse = await response.text();
+        
+        let data;
+        try {
+          data = JSON.parse(textResponse);
+        } catch (e) {
+          throw new Error(`Server returned non-JSON: ${textResponse || "Empty response (timeout or crash)"}`);
+        }
 
-        if (data.error) {
-          throw new Error(data.error);
+        if (!response.ok || data.error) {
+          throw new Error(data.error || 'Unknown server error');
         }
 
         resultImg.src = data.upscaledImage;
