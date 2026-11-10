@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas Image Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #121214; color: #e4e4e7; display: flex; height: 100vh; overflow: hidden; }
+    
+    /* Sidebar Layout */
+    .controls { width: 320px; background: #18181b; padding: 24px; border-right: 1px solid #27272a; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+    h1 { font-size: 1.25rem; font-weight: 600; color: #fafafa; }
+    .control-group { display: flex; flex-direction: column; gap: 8px; }
+    label { font-size: 0.85rem; color: #a1a1aa; display: flex; justify-content: space-between; }
+    input[type="range"] { accent-color: #6366f1; width: 100%; cursor: pointer; }
+    
+    /* Buttons */
+    .btn { background: #27272a; color: #fafafa; border: none; padding: 10px 14px; border-radius: 6px; font-weight: 500; cursor: pointer; transition: background 0.2s; text-align: center; }
+    .btn:hover { background: #3f3f46; }
+    .btn-primary { background: #6366f1; }
+    .btn-primary:hover { background: #4f46e5; }
+    
+    /* Main Viewport */
+    .viewport { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: #09090b; position: relative; }
+    canvas { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; }
+    
+    /* Upload Box */
+    .upload-box { border: 2px dashed #3f3f46; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+    .upload-box:hover { border-color: #6366f1; }
+    .upload-box p { color: #a1a1aa; margin-top: 8px; font-size: 0.9rem; }
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+
+  <aside class="controls">
+    <h1>Image Enhancer</h1>
+    
+    <label class="btn btn-primary" for="file-input">Choose Image</label>
+    <input type="file" id="file-input" accept="image/*">
+
+    <div class="control-group">
+      <label>Brightness <span id="val-brightness">100%</span></label>
+      <input type="range" id="brightness" min="0" max="200" value="100">
+    </div>
+
+    <div class="control-group">
+      <label>Contrast <span id="val-contrast">100%</span></label>
+      <input type="range" id="contrast" min="0" max="200" value="100">
+    </div>
+
+    <div class="control-group">
+      <label>Saturation <span id="val-saturate">100%</span></label>
+      <input type="range" id="saturate" min="0" max="200" value="100">
+    </div>
+
+    <div class="control-group">
+      <label>Blur <span id="val-blur">0px</span></label>
+      <input type="range" id="blur" min="0" max="10" value="0" step="0.5">
+    </div>
+
+    <button class="btn" id="reset-btn">Reset Filters</button>
+    <button class="btn btn-primary" id="download-btn">Export Image</button>
+  </aside>
+
+  <main class="viewport">
+    <div class="upload-box" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <h3>Click or Drag & Drop Photo</h3>
+      <p>Supports PNG, JPG, WEBP</p>
+    </div>
+    <canvas id="canvas"></canvas>
+  </main>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const dropZone = document.getElementById('drop-zone');
+    
+    let loadedImage = null;
+
+    const sliders = {
+      brightness: document.getElementById('brightness'),
+      contrast: document.getElementById('contrast'),
+      saturate: document.getElementById('saturate'),
+      blur: document.getElementById('blur')
+    };
+
+    // Load file into canvas
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          loadedImage = img;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          dropZone.style.display = 'none';
+          canvas.style.display = 'block';
+          applyFilters();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Apply adjustments using HTML5 Canvas filter context
+    function applyFilters() {
+      if (!loadedImage) return;
+
+      const brightness = sliders.brightness.value;
+      const contrast = sliders.contrast.value;
+      const saturate = sliders.saturate.value;
+      const blur = sliders.blur.value;
+
+      // Update UI text values
+      document.getElementById('val-brightness').textContent = `${brightness}%`;
+      document.getElementById('val-contrast').textContent = `${contrast}%`;
+      document.getElementById('val-saturate').textContent = `${saturate}%`;
+      document.getElementById('val-blur').textContent = `${blur}px`;
+
+      // Clear & redraw canvas with filters
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px)`;
+      ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Attach listeners to sliders
+    Object.values(sliders).forEach(slider => {
+      slider.addEventListener('input', applyFilters);
+    });
+
+    // Reset button
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      sliders.brightness.value = 100;
+      sliders.contrast.value = 100;
+      sliders.saturate.value = 100;
+      sliders.blur.value = 0;
+      applyFilters();
+    });
+
+    // Client-side export
+    document.getElementById('download-btn').addEventListener('click', () => {
+      if (!loadedImage) return;
+      const link = document.createElement('a');
+      link.download = 'enhanced-image.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
